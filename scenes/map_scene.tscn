@@ -1,0 +1,82 @@
+[gd_scene format=3 uid="uid://dcyk5o0n2eort"]
+
+[ext_resource type="PackedScene" uid="uid://gs23usa1m4yn" path="res://models/mec.glb" id="1_5m4q6"]
+[ext_resource type="Texture2D" uid="uid://rgposs6ga6s1" path="res://models/mec_leafsorsmth.png" id="2_vlip3"]
+[ext_resource type="Texture2D" uid="uid://b8daqaym3k42s" path="res://images/sky texture/sky_124_2k.png" id="3_vsh3c"]
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_jlqwp"]
+albedo_color = Color(0.3042055, 0.7266509, 0.8730118, 1)
+metallic = 0.8
+roughness = 0.0
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_wwgyy"]
+transparency = 2
+alpha_scissor_threshold = 0.5
+alpha_antialiasing_mode = 0
+cull_mode = 2
+albedo_texture = ExtResource("2_vlip3")
+emission_enabled = true
+emission_energy_multiplier = 0.7
+emission_texture = ExtResource("2_vlip3")
+backlight_enabled = true
+backlight = Color(0.7114585, 0.673531, 0.24391985, 1)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_5gqha"]
+transparency = 2
+alpha_scissor_threshold = 0.5
+alpha_antialiasing_mode = 0
+cull_mode = 2
+albedo_texture = ExtResource("2_vlip3")
+emission_enabled = true
+emission_energy_multiplier = 0.7
+emission_texture = ExtResource("2_vlip3")
+backlight_enabled = true
+backlight = Color(0.45043498, 0.89879644, 0.41168633, 1)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_raa3b"]
+transparency = 2
+alpha_scissor_threshold = 0.5
+alpha_antialiasing_mode = 0
+cull_mode = 2
+albedo_texture = ExtResource("2_vlip3")
+emission_enabled = true
+emission_energy_multiplier = 0.7
+emission_texture = ExtResource("2_vlip3")
+backlight_enabled = true
+backlight = Color(0.6469107, 0.74605936, 0.3228225, 1)
+
+[sub_resource type="PanoramaSkyMaterial" id="PanoramaSkyMaterial_j81jq"]
+panorama = ExtResource("3_vsh3c")
+
+[sub_resource type="Sky" id="Sky_0t01l"]
+sky_material = SubResource("PanoramaSkyMaterial_j81jq")
+
+[sub_resource type="Environment" id="Environment_gge0y"]
+background_mode = 2
+sky = SubResource("Sky_0t01l")
+ambient_light_source = 3
+
+[node name="map_scene" type="Node3D" unique_id=143631644]
+
+[node name="mec" parent="." unique_id=1878435827 instance=ExtResource("1_5m4q6")]
+transform = Transform3D(-0.99999994, 0, -8.742277e-08, 0, 1, 0, 8.742277e-08, 0, -0.99999994, 0, 0, 0)
+
+[node name="Circle_001" parent="mec" index="1" unique_id=308713666]
+surface_material_override/0 = SubResource("StandardMaterial3D_jlqwp")
+
+[node name="trunk_001" parent="mec" index="34" unique_id=1915558612]
+transform = Transform3D(1.5149996, 0, -4.2351647e-22, 0, -6.622275e-08, -1.515, 0, 1.5149996, -6.622273e-08, -32.265015, -0.34239608, -3.4475772)
+surface_material_override/1 = SubResource("StandardMaterial3D_wwgyy")
+
+[node name="trunk_002" parent="mec" index="35" unique_id=1339903773]
+transform = Transform3D(0.5686939, -1.1523074, 5.0368953e-08, 0, -5.616913e-08, -1.285, 1.1523074, 0.5686939, -2.4858398e-08, -23.752062, 0.07599181, 2.7975128)
+surface_material_override/1 = SubResource("StandardMaterial3D_5gqha")
+
+[node name="trunk_003" parent="mec" index="36" unique_id=1708097434]
+transform = Transform3D(0.7176254, 0, 0, 0, 0, -0.7176255, 0, 0.7176254, 0, -22.500675, -0.1825276, 9.828997)
+surface_material_override/1 = SubResource("StandardMaterial3D_raa3b")
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=563229307]
+environment = SubResource("Environment_gge0y")
+
+[editable path="mec"]
