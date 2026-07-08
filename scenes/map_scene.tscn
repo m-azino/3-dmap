@@ -61,18 +61,18 @@ ambient_light_source = 3
 [node name="mec" parent="." unique_id=1878435827 instance=ExtResource("1_5m4q6")]
 transform = Transform3D(-0.99999994, 0, -8.742277e-08, 0, 1, 0, 8.742277e-08, 0, -0.99999994, 0, 0, 0)
 
-[node name="Circle_001" parent="mec" index="1" unique_id=308713666]
+[node name="Circle_001" parent="mec" index="1" unique_id=1911251873]
 surface_material_override/0 = SubResource("StandardMaterial3D_jlqwp")
 
-[node name="trunk_001" parent="mec" index="34" unique_id=1915558612]
+[node name="trunk_001" parent="mec" index="34" unique_id=1540159097]
 transform = Transform3D(1.5149996, 0, -4.2351647e-22, 0, -6.622275e-08, -1.515, 0, 1.5149996, -6.622273e-08, -32.265015, -0.34239608, -3.4475772)
 surface_material_override/1 = SubResource("StandardMaterial3D_wwgyy")
 
-[node name="trunk_002" parent="mec" index="35" unique_id=1339903773]
+[node name="trunk_002" parent="mec" index="35" unique_id=2060041709]
 transform = Transform3D(0.5686939, -1.1523074, 5.0368953e-08, 0, -5.616913e-08, -1.285, 1.1523074, 0.5686939, -2.4858398e-08, -23.752062, 0.07599181, 2.7975128)
 surface_material_override/1 = SubResource("StandardMaterial3D_5gqha")
 
-[node name="trunk_003" parent="mec" index="36" unique_id=1708097434]
+[node name="trunk_003" parent="mec" index="36" unique_id=1625986464]
 transform = Transform3D(0.7176254, 0, 0, 0, 0, -0.7176255, 0, 0.7176254, 0, -22.500675, -0.1825276, 9.828997)
 surface_material_override/1 = SubResource("StandardMaterial3D_raa3b")
 
