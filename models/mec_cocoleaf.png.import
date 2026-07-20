@@ -2,20 +2,20 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://g4iq4vds6205"
-path.s3tc="res://.godot/imported/mec_mec_texture1.png-ab5861fb4b22196952b07be6f1b945ea.s3tc.ctex"
+uid="uid://dcq0gxltkaaqp"
+path.s3tc="res://.godot/imported/mec_cocoleaf.png-0bd59becbf64f2abbe3998d5c4af1714.s3tc.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc"],
 "vram_texture": true
 }
 generator_parameters={
-"md5": "3a2debdf969c23470f9f24fd05c1fdf4"
+"md5": "5e3a906551c49f6ffa128892cb008cef"
 }
 
 [deps]
 
-source_file="res://models/mec_mec_texture1.png"
-dest_files=["res://.godot/imported/mec_mec_texture1.png-ab5861fb4b22196952b07be6f1b945ea.s3tc.ctex"]
+source_file="res://models/mec_cocoleaf.png"
+dest_files=["res://.godot/imported/mec_cocoleaf.png-0bd59becbf64f2abbe3998d5c4af1714.s3tc.ctex"]
 
 [params]
 
