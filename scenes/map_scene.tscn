@@ -144,10 +144,10 @@ reflected_light_source = 2
 [node name="mec" parent="." unique_id=1878435827 instance=ExtResource("1_5m4q6")]
 transform = Transform3D(-0.99999994, 0, -8.742277e-08, 0, 1, 0, 8.742277e-08, 0, -0.99999994, 0, 0, 0)
 
-[node name="Circle_001" parent="mec" index="1" unique_id=563334666]
+[node name="Circle_001" parent="mec" index="1" unique_id=515265657]
 surface_material_override/0 = SubResource("StandardMaterial3D_jlqwp")
 
-[node name="trunk_001" parent="mec" index="46" unique_id=2085230897]
+[node name="trunk_001" parent="mec" index="46" unique_id=272166619]
 surface_material_override/1 = SubResource("StandardMaterial3D_5m4q6")
 
 [node name="trunk_002" type="MeshInstance3D" parent="mec" unique_id=598674674]
