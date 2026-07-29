@@ -35,11 +35,17 @@ func navigate_to_room(room_name: String):
 	draw_path_line(path_points)
 
 func handle_floor_visibility(room_name: String):
-	# Loop through EVERY child node inside your imported cseblock model
+	# Determine target floor (1, 2, or 3)
+	var target_floor := 1
+	if room_name.begins_with("CS2"):
+		target_floor = 2
+	elif room_name.begins_with("CS3"):
+		target_floor = 3
+	
 	for child in cse_block.get_children():
 		var node_name: String = child.name
 		
-		# 1. ALWAYS hide CSroof1 when ANY CS room is chosen (CSroof2 stays visible)
+		# 1. Roofs
 		if node_name.begins_with("CSroof1"):
 			child.visible = false
 			continue
@@ -47,24 +53,56 @@ func handle_floor_visibility(room_name: String):
 			child.visible = true
 			continue
 		
-		# 2. Ground floor (CS1) is ALWAYS visible no matter what
+		# 2. Floor Slice Visibility
 		if node_name.begins_with("CS1"):
 			child.visible = true
-			
-		# 3. First floor (CS2) is hidden ONLY if a CS1 room was chosen
 		elif node_name.begins_with("CS2"):
-			if room_name.begins_with("CS1"):
-				child.visible = false
-			else:
-				child.visible = true
-				
-		# 4. Second floor (CS3) is hidden if a CS1 OR CS2 room was chosen
+			child.visible = (target_floor >= 2)
 		elif node_name.begins_with("CS3"):
-			if room_name.begins_with("CS1") or room_name.begins_with("CS2"):
-				child.visible = false
-			else:
-				child.visible = true
+			child.visible = (target_floor >= 3)
+			
+		# 3. KEEP ALL FLOOR SLABS SOLID! (No grass peeking through!)
+		# This skips applying transparency to CS1floor, CS2floor, and CS3floor
+		if "floor" in node_name.to_lower():
+			set_room_style(child, false, false) # Opaque, no glow
+			continue
+			
+		# 4. GLOW & TRANSPARENCY APPLY TO ROOMS/WALLS
+		if node_name == room_name:
+			set_room_style(child, false, true) # Not transparent, YES glow
+		else:
+			set_room_style(child, true, false) # YES transparent (40%), NO glow
 
+func set_room_style(node: Node, make_transparent: bool, make_glow: bool):
+	if not node is MeshInstance3D:
+		return
+		
+	for i in range(node.get_surface_override_material_count()):
+		var mat = node.get_active_material(i)
+		if not mat is StandardMaterial3D:
+			continue
+			
+		mat = mat.duplicate()
+		node.set_surface_override_material(i, mat)
+		
+		if make_glow:
+			# 1. Solid opaque + Soft, subtle highlight glow
+			mat.transparency = BaseMaterial3D.TRANSPARENCY_DISABLED
+			mat.albedo_color.a = 1.0
+			mat.emission_enabled = true
+			
+			# Use a softer cyan-white tint so you can still see the original wall texture
+			mat.emission = Color(1.0, 1.0, 1.0, 1.0) 
+			
+			# Dropped from 2.5 to 0.6 so it glows gently instead of blinding you
+			mat.emission_energy_multiplier = 0.1 
+			
+		elif make_transparent:
+			# 2. Bumped up to 40% opacity ("Glass Mode")
+			mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+			mat.albedo_color.a = 0.40 
+			mat.emission_enabled = false
+			
 func draw_path_line(points: PackedVector3Array):
 	var mesh = path_line.mesh as ImmediateMesh
 	mesh.clear_surfaces()

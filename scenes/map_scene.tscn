@@ -138,6 +138,8 @@ ambient_light_source = 3
 ambient_light_sky_contribution = 0.5
 ambient_light_energy = 0.0
 reflected_light_source = 2
+glow_enabled = true
+glow_bloom = 1.0
 
 [node name="map_scene" type="Node3D" unique_id=143631644]
 
