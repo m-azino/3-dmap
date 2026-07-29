@@ -1,0 +1,53 @@
+[gd_scene format=3 uid="uid://cc4x7fsny5o3q"]
+
+[ext_resource type="Script" uid="uid://dmbfqtlr676pj" path="res://scenes/cs.gd" id="1_1jiwf"]
+[ext_resource type="PackedScene" uid="uid://dcyk5o0n2eort" path="res://scenes/map_scene.tscn" id="1_800y1"]
+[ext_resource type="PackedScene" uid="uid://crr06p5jd53bj" path="res://models/cse/cseblock.glb" id="2_1jiwf"]
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_istb3"]
+cull_mode = 2
+no_depth_test = true
+shading_mode = 0
+albedo_color = Color(0.2953924, 0.9999997, 0.9985518, 1)
+
+[sub_resource type="ImmediateMesh" id="ImmediateMesh_1ivim"]
+
+[node name="CS" type="Node3D" unique_id=41809012]
+script = ExtResource("1_1jiwf")
+
+[node name="map_scene" parent="." unique_id=143631644 instance=ExtResource("1_800y1")]
+
+[node name="Camera3D" type="Camera3D" parent="." unique_id=1737974801]
+transform = Transform3D(-0.707994, 0.49604705, -0.50267476, -0.03933344, 0.68298155, 0.7293759, 0.7051223, 0.53616565, -0.4640356, -39.35926, 13.470308, 24.901249)
+projection = 1
+size = 21.15
+
+[node name="cseblock" parent="." unique_id=655610623 instance=ExtResource("2_1jiwf")]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -30.02986, 0.11203861, 29.13276)
+
+[node name="Marker3D" type="Marker3D" parent="." unique_id=441195792]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -28.913742, 0.6746801, 19.28523)
+
+[node name="PathLine" type="MeshInstance3D" parent="." unique_id=922651338]
+material_override = SubResource("StandardMaterial3D_istb3")
+ignore_occlusion_culling = true
+mesh = SubResource("ImmediateMesh_1ivim")
+
+[node name="UI" type="CanvasLayer" parent="." unique_id=54666594]
+
+[node name="Panel" type="Panel" parent="UI" unique_id=2122558402]
+offset_right = 289.0
+offset_bottom = 647.0
+
+[node name="VBoxContainer" type="VBoxContainer" parent="UI/Panel" unique_id=275410865]
+layout_mode = 0
+offset_right = 40.0
+offset_bottom = 40.0
+
+[node name="BtnHOD" type="Button" parent="UI/Panel/VBoxContainer" unique_id=1064266406]
+layout_mode = 2
+text = "HOD Room"
+
+[node name="BtnSemHall" type="Button" parent="UI/Panel/VBoxContainer" unique_id=43945792]
+layout_mode = 2
+text = "Seminar Hall"

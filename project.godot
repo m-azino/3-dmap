@@ -11,6 +11,7 @@ config_version=5
 [application]
 
 config/name="3dmap"
+run/main_scene="uid://cc4x7fsny5o3q"
 config/features=PackedStringArray("4.7", "GL Compatibility")
 config/icon="res://icon.svg"
 

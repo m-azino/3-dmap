@@ -150,6 +150,9 @@ surface_material_override/0 = SubResource("StandardMaterial3D_jlqwp")
 [node name="trunk_001" parent="mec" index="46" unique_id=272166619]
 surface_material_override/1 = SubResource("StandardMaterial3D_5m4q6")
 
+[node name="Plane_003" parent="mec" index="75" unique_id=2146832287]
+visible = false
+
 [node name="trunk_002" type="MeshInstance3D" parent="mec" unique_id=598674674]
 transform = Transform3D(1.1056621, 0.5831048, -2.548832e-08, 0, -5.4639237e-08, -1.25, -0.5831048, 1.1056621, -4.833003e-08, -31.330004, 0.25586277, -3.1137664)
 mesh = SubResource("ArrayMesh_h0eyy")
@@ -237,6 +240,7 @@ surface_material_override/1 = SubResource("StandardMaterial3D_5m4q6")
 
 [node name="trunk_008" type="MeshInstance3D" parent="mec" unique_id=14278245]
 transform = Transform3D(3.5590346, -3.5615249, 1.5567923e-07, -2.8079735e-16, -2.200868e-07, -5.0349994, 3.5615249, 3.5590346, -1.5557038e-07, 19.079483, -2.4792416, -27.776625)
+visible = false
 mesh = SubResource("ArrayMesh_h0eyy")
 surface_material_override/1 = SubResource("StandardMaterial3D_5m4q6")
 
