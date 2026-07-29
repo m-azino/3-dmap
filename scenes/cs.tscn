@@ -3,6 +3,7 @@
 [ext_resource type="Script" uid="uid://dmbfqtlr676pj" path="res://scenes/cs.gd" id="1_1jiwf"]
 [ext_resource type="PackedScene" uid="uid://dcyk5o0n2eort" path="res://scenes/map_scene.tscn" id="1_800y1"]
 [ext_resource type="PackedScene" uid="uid://crr06p5jd53bj" path="res://models/cse/cseblock.glb" id="2_1jiwf"]
+[ext_resource type="Script" uid="uid://bpduqmcp4dhn1" path="res://scenes/cam_rig.gd" id="4_irnjp"]
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_istb3"]
 cull_mode = 2
@@ -15,11 +16,6 @@ albedo_color = Color(0.2953924, 0.9999997, 0.9985518, 1)
 script = ExtResource("1_1jiwf")
 
 [node name="map_scene" parent="." unique_id=143631644 instance=ExtResource("1_800y1")]
-
-[node name="Camera3D" type="Camera3D" parent="." unique_id=1737974801]
-transform = Transform3D(-0.707994, 0.49604705, -0.50267476, -0.03933344, 0.68298155, 0.7293759, 0.7051223, 0.53616565, -0.4640356, -39.35926, 13.470308, 24.901249)
-projection = 1
-size = 21.15
 
 [node name="cseblock" parent="." unique_id=655610623 instance=ExtResource("2_1jiwf")]
 transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -30.02986, 0.11203861, 29.13276)
@@ -50,3 +46,12 @@ text = "HOD Room"
 [node name="BtnSemHall" type="Button" parent="UI/Panel/VBoxContainer" unique_id=43945792]
 layout_mode = 2
 text = "Seminar Hall"
+
+[node name="CamRig" type="Node3D" parent="." unique_id=1041802776]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -28.826353, 0, 28.39963)
+script = ExtResource("4_irnjp")
+
+[node name="Camera3D" type="Camera3D" parent="CamRig" unique_id=1737974801]
+transform = Transform3D(0.99983954, 0.0078809885, -0.0160871, 3.5527137e-15, 0.8980276, 0.43993917, 0.017913815, -0.43986857, 0.89788353, -0.5960789, 9.17527, 16.197924)
+fov = 60.0
+size = 14.657
