@@ -6,10 +6,11 @@ extends Node3D
 
 var current_target_room: Node3D = null
 var active_path_points: PackedVector3Array = PackedVector3Array()
+var active_max_floor: int = 3
 
 func _ready():
-	$UI/Panel/VBoxContainer/BtnHOD.pressed.connect(func(): navigate_to_room("CS3HOD"))
-	$UI/Panel/VBoxContainer/BtnSemHall.pressed.connect(func(): navigate_to_room("CS1semhall"))
+	# Connects the UI menu's selection signal to your pathfinder
+	$UI.room_selected.connect(navigate_to_room)
 
 func navigate_to_room(room_name: String):
 	var target_room = cse_block.find_child(room_name, true, false)
@@ -48,14 +49,25 @@ func update_path_occlusion():
 	for child in cse_block.get_children():
 		var node_name: String = child.name
 		
-		# 1. Never modify visibility or transparency on roofs, floor slabs, stairs, or our target room
+		# 1. Check which floor this room belongs to. If it's above our target floor, KEEP IT HIDDEN!
+		var room_floor := 1
+		if node_name.begins_with("CS2"):
+			room_floor = 2
+		elif node_name.begins_with("CS3"):
+			room_floor = 3
+			
+		if room_floor > active_max_floor:
+			child.visible = false
+			continue
+		
+		# 2. Never apply occlusion hiding to roofs, floor slabs, stairs, or our target room
 		if node_name.begins_with("CSroof") or "floor" in node_name.to_lower() or "stair" in node_name.to_lower() or child == current_target_room:
 			continue
 			
 		var room_pos: Vector3 = child.global_position
 		var cam_to_room_dist: float = cam_pos.distance_to(room_pos)
 		
-		# 2. FIND THE CLOSEST POINT ON THE CYAN PATH TO THIS ROOM
+		# 3. FIND THE CLOSEST POINT ON THE CYAN PATH TO THIS ROOM
 		var closest_path_point: Vector3 = active_path_points[0]
 		var min_dist_to_path: float = 999999.0
 		
@@ -69,7 +81,7 @@ func update_path_occlusion():
 		var cam_to_path_dist: float = cam_pos.distance_to(closest_path_point)
 		var cam_to_path_dir: Vector3 = (closest_path_point - cam_pos).normalized()
 		
-		# 3. IS THIS ROOM OBSTRUCTING OUR VIEW OF THAT PATH POINT?
+		# 4. IS THIS ROOM OBSTRUCTING OUR VIEW OF THAT PATH POINT?
 		var is_closer: bool = cam_to_room_dist < (cam_to_path_dist - 1.0)
 		
 		var cam_to_room_dir: Vector3 = (room_pos - cam_pos).normalized()
@@ -78,18 +90,25 @@ func update_path_occlusion():
 		var is_blocking_height: bool = room_pos.y >= (closest_path_point.y - 0.5)
 		
 		# IF OBSTRUCTING: Make it FULLY INVISIBLE (`visible = false`)!
-		# IF NOT OBSTRUCTING: Make it visible & set to 75% semi-transparent!
+		# IF NOT OBSTRUCTING: Restore visibility (`visible = true`) & set to 75% semi-transparent!
 		if is_closer and alignment > 0.45 and is_blocking_height:
 			child.visible = false # CUTS THE ROOM ENTIRELY!
 		else:
-			child.visible = true  # VISIBLE
+			child.visible = true  # RESTORES THE ROOM WHEN CAMERA ROTATES AWAY!
 			set_room_style(child, true, false) # 75% Semi-Transparent
 
 func handle_floor_visibility(room_name: String):
+	# 1. Determine target floor (1, 2, or 3) and store it globally
+	active_max_floor = 1
+	if room_name.begins_with("CS2"):
+		active_max_floor = 2
+	elif room_name.begins_with("CS3"):
+		active_max_floor = 3
+	
 	for child in cse_block.get_children():
 		var node_name: String = child.name
 		
-		# Hide top roofs when navigating inside
+		# 2. Hide top roofs when navigating inside
 		if node_name.begins_with("CSroof1"):
 			child.visible = false
 			continue
@@ -97,13 +116,26 @@ func handle_floor_visibility(room_name: String):
 			child.visible = true
 			continue
 			
-		# Keep floor slabs and stairs 100% solid always
+		# 3. DOLLHOUSE SLICE: Completely hide floors above our destination!
+		var should_be_visible := true
+		if node_name.begins_with("CS1"):
+			should_be_visible = true
+		elif node_name.begins_with("CS2"):
+			should_be_visible = (active_max_floor >= 2)
+		elif node_name.begins_with("CS3"):
+			should_be_visible = (active_max_floor >= 3)
+			
+		child.visible = should_be_visible
+		if not should_be_visible:
+			continue # Skip styling if the entire floor is sliced away!
+			
+		# 4. Keep floor slabs and stairs 100% solid always
 		if "floor" in node_name.to_lower() or "stair" in node_name.to_lower():
 			child.visible = true
 			set_room_style(child, false, false) # 100% Solid
 			continue
 			
-		# Target room gets full visibility + Cyan Outline border
+		# 5. Target room gets full visibility + Cyan Outline border
 		if node_name == room_name:
 			child.visible = true
 			set_room_style(child, false, true) # 100% Solid + Outline
@@ -128,20 +160,24 @@ func set_room_style(node: Node, make_transparent: bool, is_target: bool):
 			# Target Room: 100% Solid Opaque + Cyan Outline
 			mat.transparency = BaseMaterial3D.TRANSPARENCY_DISABLED
 			mat.albedo_color.a = 1.0
-			mat.cull_mode = BaseMaterial3D.CULL_DISABLED # Renders both sides of inverted normals!
+			mat.cull_mode = BaseMaterial3D.CULL_BACK
+			mat.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_OPAQUE_ONLY
 			mat.next_pass = create_outline_material()
 			
 		elif make_transparent:
-			# Non-blocking rooms: Clean 75% Semi-Transparent
+			# Non-blocking rooms: 75% Semi-Transparent + FORCE DEPTH DRAW!
+			# (This stops Godot from eating the outer walls when alpha is turned on)
 			mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-			mat.albedo_color.a = 0.75
-			mat.cull_mode = BaseMaterial3D.CULL_DISABLED # Renders both sides of inverted normals!
+			mat.albedo_color.a = 1
+			mat.cull_mode = BaseMaterial3D.CULL_BACK
+			mat.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_ALWAYS
 			mat.next_pass = null
 		else:
 			# Solid 100% Opaque (For floors/stairs)
 			mat.transparency = BaseMaterial3D.TRANSPARENCY_DISABLED
 			mat.albedo_color.a = 1.0
-			mat.cull_mode = BaseMaterial3D.CULL_DISABLED # Renders both sides of inverted normals!
+			mat.cull_mode = BaseMaterial3D.CULL_BACK
+			mat.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_OPAQUE_ONLY
 			mat.next_pass = null
 
 func create_outline_material() -> StandardMaterial3D:
