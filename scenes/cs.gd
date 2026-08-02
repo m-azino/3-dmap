@@ -51,55 +51,39 @@ func _process(_delta: float):
 
 func update_path_occlusion():
 	var cam = get_viewport().get_camera_3d()
-	if not cam:
-		return
-		
-	# ONLY run occlusion if we have an active target room AND it's a CS room
-	if not current_target_room or not current_target_room.name.begins_with("CS"):
+	if not cam or active_path_points.size() == 0 or not current_target_room:
 		return
 		
 	var cam_pos: Vector3 = cam.global_position
 	
 	for child in cse_block.get_children():
 		var node_name: String = child.name
+		var n_lower: String = node_name.to_lower()
 		
-		# SKIP non-CS objects (other buildings, trees, terrain, etc.)
-		# --- REPLACE OLD CS-ONLY CHECK WITH THIS ---
-		var is_shared: bool = node_name.begins_with("SHARED")
-		var is_target_building: bool = node_name.begins_with("CS")
-
-		if not is_shared and not is_target_building:
+		# 1. ONLY process CS rooms and SHARED walkways (ignore everything else)
+		if not (n_lower.begins_with("cs") or n_lower.begins_with("shared")):
 			continue
-
-		# Skip floor slicing checks for SHARED items
-		if not is_shared:
+		
+		# 2. Floor slicing check (Only for CS rooms, skip walkways)
+		if n_lower.begins_with("cs"):
 			var room_floor := 1
-			if node_name.begins_with("CS2"): room_floor = 2
-			elif node_name.begins_with("CS3"): room_floor = 3
-	
+			if n_lower.begins_with("cs2"):
+				room_floor = 2
+			elif n_lower.begins_with("cs3"):
+				room_floor = 3
+				
 			if room_floor > active_max_floor:
 				child.visible = false
 				continue
 		
-		# 1. Check which floor this room belongs to. If it's above our target floor, KEEP IT HIDDEN!
-		var room_floor := 1
-		if node_name.begins_with("CS2"):
-			room_floor = 2
-		elif node_name.begins_with("CS3"):
-			room_floor = 3
-			
-		if room_floor > active_max_floor:
-			child.visible = false
-			continue
-		
-		# 2. Never apply occlusion hiding to roofs, floor slabs, stairs, or our target room
-		if node_name.begins_with("CSroof") or "floor" in node_name.to_lower() or "stair" in node_name.to_lower() or child == current_target_room:
+		# 3. Never hide main roofs, floor slabs, stairs, or current target room
+		if n_lower.begins_with("csroof") or "floor" in n_lower or "stair" in n_lower or child == current_target_room:
 			continue
 			
 		var room_pos: Vector3 = child.global_position
 		var cam_to_room_dist: float = cam_pos.distance_to(room_pos)
 		
-		# 3. FIND THE CLOSEST POINT ON THE CYAN PATH TO THIS ROOM
+		# 4. Find closest path point
 		var closest_path_point: Vector3 = active_path_points[0]
 		var min_dist_to_path: float = 999999.0
 		
@@ -113,34 +97,17 @@ func update_path_occlusion():
 		var cam_to_path_dist: float = cam_pos.distance_to(closest_path_point)
 		var cam_to_path_dir: Vector3 = (closest_path_point - cam_pos).normalized()
 		
-		# 4. IS THIS ROOM OBSTRUCTING OUR VIEW OF THAT PATH POINT?
+		# 5. YOUR ORIGINAL OCCLUSION CHECK (Applies identically to CS rooms & Walkways!)
 		var is_closer: bool = cam_to_room_dist < (cam_to_path_dist - 1.0)
-		
 		var cam_to_room_dir: Vector3 = (room_pos - cam_pos).normalized()
-		var alignment: float = cam_to_room_dir.dot(cam_to_path_dir) # 1.0 = direct alignment
-		
+		var alignment: float = cam_to_room_dir.dot(cam_to_path_dir)
 		var is_blocking_height: bool = room_pos.y >= (closest_path_point.y - 0.5)
 		
-		# IF OBSTRUCTING: Make it FULLY INVISIBLE (`visible = false`)!
-		# IF NOT OBSTRUCTING: Restore visibility (`visible = true`) & set to 75% semi-transparent!
-		var path_is_near_walkway: bool = min_dist_to_path < 10.0
-
-		if is_shared:
-			print("Found shared node: ", node_name, " | Dist to Path: ", min_dist_to_path, " | Pos: ", child.global_position)
-			# Fade walkway only when path passes through it AND camera is looking toward it
-			if path_is_near_walkway and (alignment > 0.3 or is_closer):
-				child.visible = true
-				set_room_style(child, true, false) # Fade using slider opacity
-			else:
-				child.visible = true
-				set_room_style(child, false, false) # Solid when camera rotates away
+		if is_closer and alignment > 0.45 and is_blocking_height:
+			child.visible = false
 		else:
-			# Standard room dynamic hiding
-			if is_closer and alignment > 0.45 and is_blocking_height:
-				child.visible = false
-			else:
-				child.visible = true
-				set_room_style(child, true, false)
+			child.visible = true
+			set_room_style(child, true, false)
 
 func handle_floor_visibility(room_name: String):
 	# Exit early if the selected room isn't part of the CS block
