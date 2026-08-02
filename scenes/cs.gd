@@ -7,10 +7,20 @@ extends Node3D
 var current_target_room: Node3D = null
 var active_path_points: PackedVector3Array = PackedVector3Array()
 var active_max_floor: int = 3
+# --- ADD THIS VARIABLE NEAR THE TOP ---
+var current_room_opacity: float = 1.0 # Default 1.0 = Fully Solid
 
 func _ready():
-	# Connects the UI menu's selection signal to your pathfinder
 	$UI.room_selected.connect(navigate_to_room)
+	# Connect to the new opacity signal from UI
+	if $UI.has_signal("room_opacity_changed"):
+		$UI.room_opacity_changed.connect(_on_room_opacity_changed)
+
+func _on_room_opacity_changed(new_opacity: float):
+	current_room_opacity = new_opacity
+	# Refresh materials immediately if a target room is active
+	if current_target_room:
+		handle_floor_visibility(current_target_room.name)
 
 func navigate_to_room(room_name: String):
 	var target_room = cse_block.find_child(room_name, true, false)
@@ -44,10 +54,32 @@ func update_path_occlusion():
 	if not cam:
 		return
 		
+	# ONLY run occlusion if we have an active target room AND it's a CS room
+	if not current_target_room or not current_target_room.name.begins_with("CS"):
+		return
+		
 	var cam_pos: Vector3 = cam.global_position
 	
 	for child in cse_block.get_children():
 		var node_name: String = child.name
+		
+		# SKIP non-CS objects (other buildings, trees, terrain, etc.)
+		# --- REPLACE OLD CS-ONLY CHECK WITH THIS ---
+		var is_shared: bool = node_name.begins_with("SHARED")
+		var is_target_building: bool = node_name.begins_with("CS")
+
+		if not is_shared and not is_target_building:
+			continue
+
+		# Skip floor slicing checks for SHARED items
+		if not is_shared:
+			var room_floor := 1
+			if node_name.begins_with("CS2"): room_floor = 2
+			elif node_name.begins_with("CS3"): room_floor = 3
+	
+			if room_floor > active_max_floor:
+				child.visible = false
+				continue
 		
 		# 1. Check which floor this room belongs to. If it's above our target floor, KEEP IT HIDDEN!
 		var room_floor := 1
@@ -91,13 +123,30 @@ func update_path_occlusion():
 		
 		# IF OBSTRUCTING: Make it FULLY INVISIBLE (`visible = false`)!
 		# IF NOT OBSTRUCTING: Restore visibility (`visible = true`) & set to 75% semi-transparent!
-		if is_closer and alignment > 0.45 and is_blocking_height:
-			child.visible = false # CUTS THE ROOM ENTIRELY!
+		var path_is_near_walkway: bool = min_dist_to_path < 10.0
+
+		if is_shared:
+			print("Found shared node: ", node_name, " | Dist to Path: ", min_dist_to_path, " | Pos: ", child.global_position)
+			# Fade walkway only when path passes through it AND camera is looking toward it
+			if path_is_near_walkway and (alignment > 0.3 or is_closer):
+				child.visible = true
+				set_room_style(child, true, false) # Fade using slider opacity
+			else:
+				child.visible = true
+				set_room_style(child, false, false) # Solid when camera rotates away
 		else:
-			child.visible = true  # RESTORES THE ROOM WHEN CAMERA ROTATES AWAY!
-			set_room_style(child, true, false) # 75% Semi-Transparent
+			# Standard room dynamic hiding
+			if is_closer and alignment > 0.45 and is_blocking_height:
+				child.visible = false
+			else:
+				child.visible = true
+				set_room_style(child, true, false)
 
 func handle_floor_visibility(room_name: String):
+	# Exit early if the selected room isn't part of the CS block
+	if not room_name.begins_with("CS"):
+		return
+
 	# 1. Determine target floor (1, 2, or 3) and store it globally
 	active_max_floor = 1
 	if room_name.begins_with("CS2"):
@@ -105,8 +154,19 @@ func handle_floor_visibility(room_name: String):
 	elif room_name.begins_with("CS3"):
 		active_max_floor = 3
 	
+	
+	
 	for child in cse_block.get_children():
 		var node_name: String = child.name
+		
+		if node_name.begins_with("shared"):
+			child.visible = true
+			set_room_style(child, false, false) # Keep walkway solid
+			continue
+		
+		# SKIP non-CS objects entirely during floor slicing
+		if not node_name.begins_with("CS"):
+			continue
 		
 		# 2. Hide top roofs when navigating inside
 		if node_name.begins_with("CSroof1"):
@@ -165,12 +225,27 @@ func set_room_style(node: Node, make_transparent: bool, is_target: bool):
 			mat.next_pass = create_outline_material()
 			
 		elif make_transparent:
-			# Non-blocking rooms: 75% Semi-Transparent + FORCE DEPTH DRAW!
-			# (This stops Godot from eating the outer walls when alpha is turned on)
-			mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-			mat.albedo_color.a = 1
-			mat.cull_mode = BaseMaterial3D.CULL_BACK
-			mat.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_ALWAYS
+			# Fallback to 1.0 if current_room_opacity happens to be null/uninitialized
+			var target_alpha: float = current_room_opacity if current_room_opacity != null else 1.0
+
+			# If slider is near 100%, keep transparency disabled for crisp rendering
+			if target_alpha >= 0.99:
+				mat.transparency = BaseMaterial3D.TRANSPARENCY_DISABLED
+				mat.albedo_color.a = 1.0
+				mat.cull_mode = BaseMaterial3D.CULL_BACK
+				mat.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_OPAQUE_ONLY
+			else:
+				# Apply dynamic slider alpha safely
+				mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		
+				# Create a updated copy of albedo_color with the new alpha
+				var color: Color = mat.albedo_color
+				color.a = target_alpha
+				mat.albedo_color = color
+		
+				mat.cull_mode = BaseMaterial3D.CULL_BACK
+				mat.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_ALWAYS
+		
 			mat.next_pass = null
 		else:
 			# Solid 100% Opaque (For floors/stairs)

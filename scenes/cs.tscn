@@ -1,10 +1,10 @@
 [gd_scene format=3 uid="uid://cc4x7fsny5o3q"]
 
 [ext_resource type="Script" uid="uid://dmbfqtlr676pj" path="res://scenes/cs.gd" id="1_1jiwf"]
-[ext_resource type="PackedScene" uid="uid://dcyk5o0n2eort" path="res://scenes/map_scene.tscn" id="1_800y1"]
 [ext_resource type="PackedScene" uid="uid://crr06p5jd53bj" path="res://models/cse/cseblock.glb" id="2_1jiwf"]
 [ext_resource type="Script" uid="uid://c1clbycjc1dvx" path="res://scenes/ui.gd" id="4_dj6eb"]
 [ext_resource type="Script" uid="uid://bpduqmcp4dhn1" path="res://scenes/cam_rig.gd" id="4_irnjp"]
+[ext_resource type="Texture2D" uid="uid://b8daqaym3k42s" path="res://images/sky texture/sky_124_2k.png" id="5_dj6eb"]
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_istb3"]
 cull_mode = 2
@@ -13,10 +13,24 @@ albedo_color = Color(0.2953924, 0.9999997, 0.9985518, 1)
 
 [sub_resource type="ImmediateMesh" id="ImmediateMesh_1ivim"]
 
+[sub_resource type="PanoramaSkyMaterial" id="PanoramaSkyMaterial_5yrua"]
+panorama = ExtResource("5_dj6eb")
+
+[sub_resource type="Sky" id="Sky_0t01l"]
+sky_material = SubResource("PanoramaSkyMaterial_5yrua")
+
+[sub_resource type="Environment" id="Environment_om8ft"]
+background_mode = 2
+sky = SubResource("Sky_0t01l")
+ambient_light_source = 3
+ambient_light_sky_contribution = 0.5
+ambient_light_energy = 0.0
+reflected_light_source = 2
+glow_enabled = true
+glow_bloom = 1.0
+
 [node name="CS" type="Node3D" unique_id=41809012]
 script = ExtResource("1_1jiwf")
-
-[node name="map_scene" parent="." unique_id=143631644 instance=ExtResource("1_800y1")]
 
 [node name="cseblock" parent="." unique_id=655610623 instance=ExtResource("2_1jiwf")]
 transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -30.02986, 0.11203861, 29.13276)
@@ -64,3 +78,10 @@ script = ExtResource("4_irnjp")
 transform = Transform3D(0.99983954, 0.0078809885, -0.0160871, 3.5527137e-15, 0.8980276, 0.43993917, 0.017913815, -0.43986857, 0.89788353, -0.5960789, 9.17527, 16.197924)
 fov = 60.0
 size = 14.657
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=1387741623]
+environment = SubResource("Environment_om8ft")
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=144786542]
+transform = Transform3D(-0.40858486, -0.49950033, 0.7639096, -0.16313834, 0.86344784, 0.47732952, -0.89802235, 0.07040667, -0.4342795, 9.450371, 10.009823, 27.40836)
+shadow_enabled = true

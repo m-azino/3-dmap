@@ -1,5 +1,6 @@
 extends CanvasLayer
 
+signal room_opacity_changed(value: float)
 signal room_selected(room_node_name: String)
 
 @onready var btn_back: Button = $MenuContainer/VBox/Header/BtnBack
@@ -72,7 +73,32 @@ var selected_category := ""
 
 func _ready():
 	btn_back.pressed.connect(on_back_pressed)
+	create_opacity_slider_ui() # Builds slider at bottom of menu
 	show_block_menu()
+
+func create_opacity_slider_ui():
+	var slider_box := HBoxContainer.new()
+	slider_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	
+	var lbl := Label.new()
+	lbl.text = "Opacity:"
+	
+	var slider := HSlider.new()
+	slider.min_value = 0.1
+	slider.max_value = 1.0
+	slider.step = 0.05
+	slider.value = 1.0 # Default full opacity
+	slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	
+	slider.value_changed.connect(func(val: float):
+		room_opacity_changed.emit(val)
+	)
+	
+	slider_box.add_child(lbl)
+	slider_box.add_child(slider)
+	
+	# Adds slider row right inside your VBox below the menu content
+	$MenuContainer/VBox.add_child(slider_box)
 
 # --- LEVEL 1: MAIN BLOCKS ---
 # --- LEVEL 1: MAIN BLOCKS ---
