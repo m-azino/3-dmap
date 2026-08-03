@@ -1,0 +1,44 @@
+[gd_scene format=3 uid="uid://cg67qwr64e4yt"]
+
+[ext_resource type="PackedScene" uid="uid://btde83g76wyw6" path="res://models/tree/treeasset.glb" id="1_viusy"]
+[ext_resource type="Shader" uid="uid://8iklibbjei77" path="res://scenes/tree.gdshader" id="2_qd6xs"]
+[ext_resource type="Texture2D" uid="uid://c780ge8o6s6j4" path="res://models/tree/leaves-01.jpg" id="3_ake3r"]
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_18mvg"]
+albedo_color = Color(0.1544038, 0.08139854, 0, 1)
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_dmmp0"]
+render_priority = 0
+shader = ExtResource("2_qd6xs")
+shader_parameter/foliage_texture = ExtResource("3_ake3r")
+shader_parameter/texture_scale = Vector2(1.6, 1.6)
+shader_parameter/alpha_threshold = 0.7170000340575
+shader_parameter/foliage_colour = Color(0.13, 0.33, 0.25, 1)
+shader_parameter/color_strength = 1.1370000540075
+shader_parameter/fresnel_colour = Color(0.5, 0.7, 0.4, 1)
+shader_parameter/fresnel_strength = 0.3750000178125
+shader_parameter/fresnel_power = 1.5
+shader_parameter/billboard_strength = 0.7370000350075
+shader_parameter/vertex_offset_scale = Vector2(1, 1)
+shader_parameter/flip_normal = true
+shader_parameter/use_wind = true
+shader_parameter/wind_strength = 0.5430000257925
+shader_parameter/wind_speed = 2.82300013083262
+shader_parameter/wind_direction = Vector3(1, 0, 0)
+
+[node name="tree" type="Node3D" unique_id=1819656265]
+transform = Transform3D(0.5, 0, 0, 0, 0.5, 0, 0, 0, 0.5, 0, 0, 0)
+
+[node name="AuxScene" parent="." unique_id=73278824 instance=ExtResource("1_viusy")]
+transform = Transform3D(2.395, 0, 0, 0, 2.395, 0, 0, 0, 2.395, 0.27706122, 0, -1.0618505)
+
+[node name="Tree" parent="AuxScene" index="0" unique_id=1176445327]
+transform = Transform3D(0.1, 0, 0, 0, 0.1, 0, 0, 0, 0.1, 0, 0, 0)
+
+[node name="Mesh" parent="AuxScene/Tree" index="0" unique_id=1092001853]
+material_override = SubResource("StandardMaterial3D_18mvg")
+
+[node name="Mesh2" parent="AuxScene/Tree" index="1" unique_id=1147576250]
+material_override = SubResource("ShaderMaterial_dmmp0")
+
+[editable path="AuxScene"]

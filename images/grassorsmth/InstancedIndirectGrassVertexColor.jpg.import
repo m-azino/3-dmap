@@ -2,20 +2,17 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://dcq0gxltkaaqp"
-path.s3tc="res://.godot/imported/mec_cocoleaf.png-0bd59becbf64f2abbe3998d5c4af1714.s3tc.ctex"
+uid="uid://psixwofspgmk"
+path.s3tc="res://.godot/imported/InstancedIndirectGrassVertexColor.jpg-dd8ccedb1cc24ad125d39dcabe051515.s3tc.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc"],
 "vram_texture": true
 }
-generator_parameters={
-"md5": "5e3a906551c49f6ffa128892cb008cef"
-}
 
 [deps]
 
-source_file="res://models/mec_cocoleaf.png"
-dest_files=["res://.godot/imported/mec_cocoleaf.png-0bd59becbf64f2abbe3998d5c4af1714.s3tc.ctex"]
+source_file="res://images/grassorsmth/InstancedIndirectGrassVertexColor.jpg"
+dest_files=["res://.godot/imported/InstancedIndirectGrassVertexColor.jpg-dd8ccedb1cc24ad125d39dcabe051515.s3tc.ctex"]
 
 [params]
 

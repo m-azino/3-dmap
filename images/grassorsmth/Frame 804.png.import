@@ -2,20 +2,17 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://dni8863ybv4dm"
-path.s3tc="res://.godot/imported/mec_mec_texture2.png-a574dfac7423068a132356302e285539.s3tc.ctex"
+uid="uid://6jng2lswxq85"
+path.s3tc="res://.godot/imported/Frame 804.png-f0ad6dcca70fd13b17b752dadf208e40.s3tc.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc"],
 "vram_texture": true
 }
-generator_parameters={
-"md5": "33f8f26f6410e2c7f5042ac7067cd2bf"
-}
 
 [deps]
 
-source_file="res://models/mec_mec_texture2.png"
-dest_files=["res://.godot/imported/mec_mec_texture2.png-a574dfac7423068a132356302e285539.s3tc.ctex"]
+source_file="res://images/grassorsmth/Frame 804.png"
+dest_files=["res://.godot/imported/Frame 804.png-f0ad6dcca70fd13b17b752dadf208e40.s3tc.ctex"]
 
 [params]
 
