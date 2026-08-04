@@ -4,15 +4,16 @@ importer="texture"
 type="CompressedTexture2D"
 uid="uid://psixwofspgmk"
 path.s3tc="res://.godot/imported/InstancedIndirectGrassVertexColor.jpg-dd8ccedb1cc24ad125d39dcabe051515.s3tc.ctex"
+path.etc2="res://.godot/imported/InstancedIndirectGrassVertexColor.jpg-dd8ccedb1cc24ad125d39dcabe051515.etc2.ctex"
 metadata={
-"imported_formats": ["s3tc_bptc"],
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
 "vram_texture": true
 }
 
 [deps]
 
 source_file="res://images/grassorsmth/InstancedIndirectGrassVertexColor.jpg"
-dest_files=["res://.godot/imported/InstancedIndirectGrassVertexColor.jpg-dd8ccedb1cc24ad125d39dcabe051515.s3tc.ctex"]
+dest_files=["res://.godot/imported/InstancedIndirectGrassVertexColor.jpg-dd8ccedb1cc24ad125d39dcabe051515.s3tc.ctex", "res://.godot/imported/InstancedIndirectGrassVertexColor.jpg-dd8ccedb1cc24ad125d39dcabe051515.etc2.ctex"]
 
 [params]
 

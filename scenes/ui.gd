@@ -230,8 +230,13 @@ func create_room_card(room_id: String, display_text: String):
 	vbox.add_child(lbl)
 	
 	# 6. Connect navigation trigger
+	# 6. Connect navigation trigger
 	btn.pressed.connect(func():
 		room_selected.emit(room_id)
+		
+		var handoff = get_node_or_null("/root/CS/HandoffManager")
+		if handoff:
+			handoff.send_room_to_firebase(room_id)
 	)
 	
 	content_grid.add_child(btn)
