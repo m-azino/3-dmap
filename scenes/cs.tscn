@@ -86,7 +86,7 @@ offset_right = 1891.0
 offset_bottom = 1054.0
 
 [node name="CamRig" type="Node3D" parent="." unique_id=1041802776]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -28.826353, 0, 28.39963)
+transform = Transform3D(-0.87360066, 0, -0.48664358, 0, 1, 0, 0.48664358, 0, -0.87360066, -34.685627, 0, -2.7324429)
 script = ExtResource("4_irnjp")
 
 [node name="Camera3D" type="Camera3D" parent="CamRig" unique_id=1737974801]

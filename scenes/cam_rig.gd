@@ -19,14 +19,18 @@ var target_zoom: float = 20.0 # Where the camera WANTS to be
 var current_zoom: float = 20.0 # Where the camera ACTUALLY is right now
 
 func _ready():
-	# Reset transforms to guarantee zero roll drift on startup
-	rotation = Vector3.ZERO
-	camera.rotation = Vector3.ZERO
+	# 1. Read the starting rotation directly from what you set in the 3D viewport
+	yaw = rotation_degrees.y
+	pitch = camera.rotation_degrees.x
 	
-	# Initialize our zoom trackers to match the camera's starting distance
+	# Clamp pitch so starting angle doesn't violate your limits (-80 to -10)
+	pitch = clamp(pitch, -80.0, -10.0)
+	
+	# 2. Initialize zoom trackers to match the camera's starting distance
 	current_zoom = camera.position.length()
 	target_zoom = current_zoom
 	
+	# 3. Apply the initial orientation
 	update_camera_transform()
 
 func _unhandled_input(event: InputEvent):
