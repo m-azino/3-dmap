@@ -66,35 +66,227 @@ var current_view := "blocks"
 var selected_block := ""
 var selected_category := ""
 
+# Reference for setting panel container
+var settings_panel: PanelContainer = null
+
 func _ready():
 	btn_back.pressed.connect(on_back_pressed)
+	
+	# Force shadows disabled and shadow distance to 10m on startup
+	var sun = get_sun_light()
+	if sun:
+		sun.shadow_enabled = false
+		sun.directional_shadow_max_distance = 10.0
+
 	create_opacity_slider_ui() # Anchors to screen bottom-center
+	create_settings_ui()       # Gear icon & popup settings menu
 	show_block_menu()
 
+func get_world_env() -> Environment:
+	var world_env = get_tree().root.find_child("WorldEnvironment", true, false) as WorldEnvironment
+	if world_env:
+		return world_env.environment
+	return null
+
+func get_sun_light() -> DirectionalLight3D:
+	return get_tree().root.find_child("DirectionalLight3D", true, false) as DirectionalLight3D
+
+func create_settings_ui():
+	# 1. Gear Icon Button anchored to top-right
+	var gear_btn := Button.new()
+	gear_btn.name = "GearButton"
+	gear_btn.text = "⚙"
+	gear_btn.custom_minimum_size = Vector2(44, 44)
+	gear_btn.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT, Control.PRESET_MODE_MINSIZE, 20)
+	gear_btn.add_theme_font_size_override("font_size", 22)
+	add_child(gear_btn)
+
+	# 2. Settings Panel Container
+	settings_panel = PanelContainer.new()
+	settings_panel.name = "SettingsPanel"
+	settings_panel.visible = false
+	
+	settings_panel.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT, Control.PRESET_MODE_MINSIZE, 20)
+	settings_panel.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	settings_panel.offset_top = 70
+	settings_panel.custom_minimum_size = Vector2(260, 0)
+	
+	var margin := MarginContainer.new()
+	margin.add_theme_constant_override("margin_top", 12)
+	margin.add_theme_constant_override("margin_bottom", 12)
+	margin.add_theme_constant_override("margin_left", 12)
+	margin.add_theme_constant_override("margin_right", 12)
+	settings_panel.add_child(margin)
+
+	var vbox := VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 10)
+	margin.add_child(vbox)
+
+	# Title
+	var title := Label.new()
+	title.text = "Graphics Settings"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_font_size_override("font_size", 16)
+	vbox.add_child(title)
+
+	# --- MASTER TOGGLE: OFF BY DEFAULT ---
+	var chk_all := CheckBox.new()
+	chk_all.text = "Enable Post Processing"
+	chk_all.button_pressed = false
+	vbox.add_child(chk_all)
+
+	# Individual Toggle: SSAO (Disabled by default)
+	var chk_ssao := CheckBox.new()
+	chk_ssao.text = "SSAO (Ambient Occlusion)"
+	chk_ssao.button_pressed = false
+	chk_ssao.disabled = true
+	vbox.add_child(chk_ssao)
+
+	# Individual Toggle: Glow (Disabled by default)
+	var chk_glow := CheckBox.new()
+	chk_glow.text = "Glow / Bloom"
+	chk_glow.button_pressed = false
+	chk_glow.disabled = true
+	vbox.add_child(chk_glow)
+
+	# Individual Toggle: Fog (Disabled by default)
+	var chk_fog := CheckBox.new()
+	chk_fog.text = "Volumetric Fog"
+	chk_fog.button_pressed = false
+	chk_fog.disabled = true
+	vbox.add_child(chk_fog)
+
+	# FORCE WORLD ENVIRONMENT TO DISABLE ALL POST-PROCESSING ON START
+	var env = get_world_env()
+	if env:
+		env.ssao_enabled = false
+		env.glow_enabled = false
+		env.fog_enabled = false
+
+	# Trees & Vegetation Toggle
+	var chk_trees := CheckBox.new()
+	chk_trees.text = "Show Trees & Palms"
+	chk_trees.button_pressed = true
+	vbox.add_child(chk_trees)
+
+	var sep1 := HSeparator.new()
+	vbox.add_child(sep1)
+
+	# --- SHADOW TOGGLE (DISABLED BY DEFAULT) ---
+	var chk_hq_shadows := CheckBox.new()
+	chk_hq_shadows.text = "Enable Shadows"
+	chk_hq_shadows.button_pressed = false
+	vbox.add_child(chk_hq_shadows)
+
+	# --- SHADOW DISTANCE SLIDER (DEFAULT 10m, DISABLED INITIALLY) ---
+	var sun = get_sun_light()
+	var current_dist: float = sun.directional_shadow_max_distance if sun else 10.0
+
+	var shadow_label := Label.new()
+	shadow_label.text = "Shadow Distance: " + str(int(current_dist)) + "m"
+	shadow_label.add_theme_font_size_override("font_size", 13)
+	vbox.add_child(shadow_label)
+
+	var shadow_slider := HSlider.new()
+	shadow_slider.min_value = 10.0
+	shadow_slider.max_value = 1500.0
+	shadow_slider.step = 10.0
+	shadow_slider.value = current_dist
+	shadow_slider.editable = false # Grayed out until shadows are enabled
+	vbox.add_child(shadow_slider)
+
+	var apply_shadow_quality = func(shadows_enabled: bool):
+		var target_sun = get_sun_light()
+		if target_sun:
+			target_sun.shadow_enabled = shadows_enabled
+			if shadows_enabled:
+				target_sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_4_SPLITS
+				target_sun.shadow_bias = 0.15
+				target_sun.shadow_normal_bias = 2.0
+				target_sun.directional_shadow_blend_splits = false
+
+	# Explicitly turn shadows OFF on startup
+	apply_shadow_quality.call(false)
+
+	# --- CONNECTIONS ---
+	chk_all.toggled.connect(func(toggled: bool):
+		var target_env = get_world_env()
+		if target_env:
+			target_env.ssao_enabled = toggled and chk_ssao.button_pressed
+			target_env.glow_enabled = toggled and chk_glow.button_pressed
+			target_env.fog_enabled = toggled and chk_fog.button_pressed
+			
+		chk_ssao.disabled = not toggled
+		chk_glow.disabled = not toggled
+		chk_fog.disabled = not toggled
+	)
+
+	chk_ssao.toggled.connect(func(toggled: bool):
+		var target_env = get_world_env()
+		if target_env:
+			target_env.ssao_enabled = toggled
+	)
+
+	chk_glow.toggled.connect(func(toggled: bool):
+		var target_env = get_world_env()
+		if target_env:
+			target_env.glow_enabled = toggled
+	)
+
+	chk_fog.toggled.connect(func(toggled: bool):
+		var target_env = get_world_env()
+		if target_env:
+			target_env.fog_enabled = toggled
+	)
+
+	chk_trees.toggled.connect(func(toggled: bool):
+		var trees_node = get_tree().root.find_child("trees", true, false)
+		if trees_node:
+			trees_node.visible = toggled
+
+		var cse_block = get_tree().root.find_child("cseblock", true, false)
+		if cse_block:
+			for child in cse_block.get_children():
+				if child.name.to_lower().begins_with("coco"):
+					child.visible = toggled
+	)
+
+	chk_hq_shadows.toggled.connect(func(toggled: bool):
+		apply_shadow_quality.call(toggled)
+		shadow_slider.editable = toggled
+	)
+
+	shadow_slider.value_changed.connect(func(val: float):
+		shadow_label.text = "Shadow Distance: " + str(int(val)) + "m"
+		var target_sun = get_sun_light()
+		if target_sun:
+			target_sun.directional_shadow_max_distance = val
+	)
+
+	gear_btn.pressed.connect(func():
+		settings_panel.visible = not settings_panel.visible
+	)
+
+	add_child(settings_panel)
+
 func create_opacity_slider_ui():
-	# 1. Floating MarginContainer at screen bottom (No black background)
 	var margin := MarginContainer.new()
 	margin.name = "OpacityContainer"
-	
-	# Anchor to Bottom Center
 	margin.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM, Control.PRESET_MODE_MINSIZE, 25)
 	margin.grow_horizontal = Control.GROW_DIRECTION_BOTH
 	margin.grow_vertical = Control.GROW_DIRECTION_BEGIN
 	
-	# 2. Layout Container
 	var vbox := VBoxContainer.new()
 	vbox.alignment = BoxContainer.ALIGNMENT_CENTER
 	vbox.add_theme_constant_override("separation", 6)
 	margin.add_child(vbox)
 	
-	# 3. Clean Label
 	var lbl := Label.new()
 	lbl.text = "Building Transparency"
 	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	lbl.add_theme_font_size_override("font_size", 15)
 	vbox.add_child(lbl)
 	
-	# 4. Thicker Custom Slider
 	var slider := HSlider.new()
 	slider.min_value = 0.1
 	slider.max_value = 1.0
@@ -103,9 +295,8 @@ func create_opacity_slider_ui():
 	slider.custom_minimum_size = Vector2(380, 28)
 	slider.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	
-	# --- Thicker Track Style ---
 	var track_style := StyleBoxFlat.new()
-	track_style.bg_color = Color(1.0, 1.0, 1.0, 0.2) # Semi-transparent white track
+	track_style.bg_color = Color(1.0, 1.0, 1.0, 0.2)
 	track_style.corner_radius_top_left = 6
 	track_style.corner_radius_top_right = 6
 	track_style.corner_radius_bottom_left = 6
@@ -114,7 +305,7 @@ func create_opacity_slider_ui():
 	track_style.expand_margin_bottom = 4
 	
 	var fill_style := track_style.duplicate() as StyleBoxFlat
-	fill_style.bg_color = Color("2563eb") # Accent color fill
+	fill_style.bg_color = Color("2563eb")
 	
 	slider.add_theme_stylebox_override("slider", track_style)
 	slider.add_theme_stylebox_override("grabber_area", fill_style)

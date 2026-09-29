@@ -4,7 +4,6 @@
 [ext_resource type="PackedScene" uid="uid://crr06p5jd53bj" path="res://models/cse/cseblock.glb" id="2_1jiwf"]
 [ext_resource type="Script" uid="uid://c1clbycjc1dvx" path="res://scenes/ui.gd" id="4_dj6eb"]
 [ext_resource type="Script" uid="uid://bpduqmcp4dhn1" path="res://scenes/cam_rig.gd" id="4_irnjp"]
-[ext_resource type="Texture2D" uid="uid://b8daqaym3k42s" path="res://images/sky texture/sky_124_2k.png" id="5_dj6eb"]
 [ext_resource type="PackedScene" uid="uid://cg67qwr64e4yt" path="res://scenes/tree.tscn" id="6_5yrua"]
 [ext_resource type="Script" uid="uid://bexbt0qtitdi6" path="res://scenes/handoff_manager.gd" id="9_p6dxh"]
 
@@ -15,15 +14,20 @@ albedo_color = Color(0.2953924, 0.9999997, 0.9985518, 1)
 
 [sub_resource type="ImmediateMesh" id="ImmediateMesh_1ivim"]
 
-[sub_resource type="PanoramaSkyMaterial" id="PanoramaSkyMaterial_5yrua"]
-panorama = ExtResource("5_dj6eb")
+[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_dmmp0"]
+sky_top_color = Color(0.9887149, 0.99024373, 0.99622613, 1)
+sky_horizon_color = Color(0.62352943, 0.7254902, 0.9019608, 1)
+sky_energy_multiplier = 0.7
+ground_bottom_color = Color(0.6250526, 0.72429156, 0.90196437, 1)
+ground_horizon_color = Color(0.62352943, 0.7254902, 0.9019608, 1)
+ground_energy_multiplier = 0.6
 
-[sub_resource type="Sky" id="Sky_0t01l"]
-sky_material = SubResource("PanoramaSkyMaterial_5yrua")
+[sub_resource type="Sky" id="Sky_viusy"]
+sky_material = SubResource("ProceduralSkyMaterial_dmmp0")
 
 [sub_resource type="Environment" id="Environment_om8ft"]
 background_mode = 2
-sky = SubResource("Sky_0t01l")
+sky = SubResource("Sky_viusy")
 ambient_light_source = 3
 ambient_light_sky_contribution = 0.5
 ambient_light_energy = 0.0
@@ -32,7 +36,6 @@ ssao_enabled = true
 ssao_radius = 2.0
 glow_enabled = true
 glow_bloom = 0.71
-fog_enabled = true
 fog_light_color = Color(0.56504667, 0.55858165, 0.42958125, 1)
 fog_light_energy = 0.92
 fog_density = 0.001
@@ -86,13 +89,15 @@ offset_right = 1891.0
 offset_bottom = 1054.0
 
 [node name="CamRig" type="Node3D" parent="." unique_id=1041802776]
-transform = Transform3D(-0.87360066, 0, -0.48664358, 0, 1, 0, 0.48664358, 0, -0.87360066, -34.685627, 0, -2.7324429)
+transform = Transform3D(-0.87360066, 0, -0.48664358, 0, 1, 0, 0.48664358, 0, -0.87360066, -40.060486, 29.17994, -13.919512)
 script = ExtResource("4_irnjp")
 
 [node name="Camera3D" type="Camera3D" parent="CamRig" unique_id=1737974801]
-transform = Transform3D(0.99983954, 0.0078809885, -0.0160871, 3.5527137e-15, 0.8980276, 0.43993917, 0.017913815, -0.43986857, 0.89788353, -0.5960789, 9.17527, 16.197924)
+transform = Transform3D(0.99999994, 0, 0, 0, 0.8660254, 0.5, 0, -0.49999997, 0.8660253, -1.8447933, 12.767723, 7.523182)
+projection = 1
 fov = 60.0
-size = 14.657
+size = 19.586
+near = 0.001
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=1387741623]
 environment = SubResource("Environment_om8ft")
