@@ -1,38 +1,51 @@
 extends Node3D
-## Orthographic map camera rig - mouse (PC) + touch (phone).
+## Orthographic map camera rig (v4) - mouse (PC) + touch (phone).
 ##
-## TOUCH
-##   1 finger drag ........ pan (1:1 with finger, with fling/inertia)
-##   2 finger pinch ....... zoom (proportional + smoothed)
-##   2 finger twist ....... rotate map around the SCREEN CENTER
-##   2 finger drag up/down  tilt camera around the SCREEN CENTER
-## MOUSE
-##   Left drag = pan, Right/Middle drag = orbit, Wheel = zoom
+## The RIG ORIGIN is the pivot: the ground point at the centre of the screen.
+## The camera is placed by this script at a fixed distance behind the pivot.
+## => rotate / tilt always spin around the screen centre, pan moves the pivot.
+##
+## TOUCH: 1 finger = pan | pinch = zoom | twist = rotate | 2-finger up/down = tilt
+## MOUSE: left drag = pan | right/middle drag = orbit | wheel = zoom
 
-# --- TUNING SETTINGS ---
+const VERSION := "v4"
+
 @export_group("Zoom")
 @export var min_zoom: float = 10.0
 @export var max_zoom: float = 100.0
-@export var zoom_speed: float = 2.0          # Mouse wheel step
-@export var zoom_smoothness: float = 14.0    # Higher = snappier, lower = smoother
+@export var zoom_speed: float = 2.0
+@export var zoom_smoothness: float = 14.0
 
 @export_group("Pan")
-@export var pan_sensitivity: float = 1.0     # 1.0 = map sticks to finger exactly
-@export var pan_inertia: bool = true
-@export var inertia_damping: float = 4.0     # Higher = stops sooner
-@export var min_fling_speed: float = 1.0
+@export var pan_sensitivity: float = 1.0      # 1.0 = map sticks to the finger
+@export var pan_inertia: bool = false         # Fling after release (off by default)
+@export var inertia_damping: float = 5.0
+@export var max_fling_px_per_sec: float = 1500.0
 
 @export_group("Orbit")
-@export var rotate_speed: float = 0.07       # Mouse orbit (deg/px)
-@export var rotate_smoothness: float = 14.0  # Higher = snappier, lower = smoother
-## Height (world Y) of the ground/floor the camera pivots around.
-@export var focus_plane_y: float = 0.0
+@export var rotate_speed: float = 0.07        # Mouse orbit (deg/px)
+@export var rotate_smoothness: float = 14.0
+@export var min_pitch: float = -80.0
+@export var max_pitch: float = -15.0
 
 @export_group("Touch Two-Finger")
-@export var twist_gain: float = 1.0          # Negative value inverts twist direction
+@export var twist_gain: float = 1.0           # -1 inverts twist direction
 @export var twist_threshold_deg: float = 6.0
-@export var tilt_speed: float = 0.25         # Pitch degrees per pixel
+@export var tilt_speed: float = 0.25          # deg per px
 @export var tilt_threshold_px: float = 12.0
+@export var tilt_inverted: bool = false
+
+@export_group("Scene Setup")
+## World Y of the floor the camera pivots around.
+@export var focus_plane_y: float = 0.0
+## 0 = keep the camera's current distance from the scene. Otherwise force a value.
+@export var orbit_distance: float = 0.0
+## Keep the pivot inside the map so it can never leave the screen.
+@export var auto_bounds: bool = true
+@export var bounds_margin: float = 10.0
+
+@export_group("Debug")
+@export var debug_overlay: bool = true        # Small text at bottom-left. Turn off when done.
 
 @onready var camera: Camera3D = $Camera3D
 
@@ -40,17 +53,20 @@ extends Node3D
 var is_panning: bool = false
 var is_orbiting: bool = false
 
-# Current (rendered) values and target (input-driven) values
+# Current (rendered) and target (input-driven) values
 var yaw: float = 0.0
 var pitch: float = -45.0
 var target_yaw: float = 0.0
 var target_pitch: float = -45.0
-
 var target_zoom: float = 50.0
 var current_zoom: float = 50.0
 
+var _dist: float = 100.0
+var bounds: Rect2 = Rect2()
+var has_bounds: bool = false
+
 # Touch state
-var active_touches: Dictionary = {}
+var active_touches: Dictionary = {}   # finger index -> last screen position
 var _prev_dist: float = 0.0
 var _prev_angle: float = 0.0
 var _prev_mid: Vector2 = Vector2.ZERO
@@ -59,31 +75,90 @@ var _twist_active: bool = false
 var _tilt_accum: float = 0.0
 var _tilt_active: bool = false
 
-# Inertia state
-var _pan_velocity: Vector3 = Vector3.ZERO
+# Fling state (screen pixels per second)
+var _fling_px: Vector2 = Vector2.ZERO
 var _last_drag_msec: int = 0
+
+var _dbg: Label
 
 
 func _ready():
 	camera.projection = Camera3D.PROJECTION_ORTHOGONAL
 	camera.near = 0.1
-	camera.far = 1000.0
+	camera.far = maxf(camera.far, 1000.0)
 
 	yaw = rotation_degrees.y
-	pitch = clampf(camera.rotation_degrees.x, -80.0, -10.0)
+	pitch = clampf(camera.rotation_degrees.x, min_pitch, max_pitch)
 	target_yaw = yaw
 	target_pitch = pitch
 
-	camera.size = target_zoom
+	# Measure the scene's current view, then move the rig origin onto the
+	# screen-centre ground point so the view looks exactly the same.
+	var hit: Variant = _ground_hit(camera.global_position, -camera.global_transform.basis.z)
+	if hit != null:
+		_dist = camera.global_position.distance_to(hit as Vector3)
+		global_position = hit as Vector3
+	else:
+		_dist = 100.0
+		global_position = Vector3(global_position.x, focus_plane_y, global_position.z)
+	if orbit_distance > 0.0:
+		_dist = orbit_distance
+
+	camera.size = clampf(camera.size, min_zoom, max_zoom)
+	target_zoom = camera.size
 	current_zoom = camera.size
 
 	_apply_view()
 
+	if debug_overlay:
+		_make_debug_overlay()
+	if auto_bounds:
+		_compute_bounds()
 
+
+func _ground_hit(origin: Vector3, dir: Vector3) -> Variant:
+	return Plane(Vector3.UP, focus_plane_y).intersects_ray(origin, dir)
+
+
+func _apply_view() -> void:
+	rotation_degrees = Vector3(0.0, yaw, 0.0)
+	var b := Basis.from_euler(Vector3(deg_to_rad(pitch), 0.0, 0.0))
+	camera.transform = Transform3D(b, b * Vector3(0.0, 0.0, _dist))
+
+
+func _compute_bounds() -> void:
+	await get_tree().process_frame
+	var merged := AABB()
+	var first := true
+	for n in get_tree().root.find_children("*", "MeshInstance3D", true, false):
+		var mi := n as MeshInstance3D
+		if mi == null or mi.mesh == null:
+			continue
+		var box: AABB = mi.global_transform * mi.get_aabb()
+		if first:
+			merged = box
+			first = false
+		else:
+			merged = merged.merge(box)
+	if first:
+		return
+	bounds = Rect2(merged.position.x, merged.position.z, merged.size.x, merged.size.z).grow(bounds_margin)
+	has_bounds = true
+
+
+func _clamp_pivot() -> void:
+	if has_bounds:
+		global_position.x = clampf(global_position.x, bounds.position.x, bounds.end.x)
+		global_position.z = clampf(global_position.z, bounds.position.y, bounds.end.y)
+
+
+# ---------------------------------------------------------------------------
+# INPUT
+# ---------------------------------------------------------------------------
 func _unhandled_input(event: InputEvent):
 	# --- MOUSE (PC) ---
 	if event is InputEventMouseButton or event is InputEventMouseMotion:
-		# Ignore the fake mouse events Godot creates from touches
+		# Ignore fake mouse events Godot generates from touches
 		if event.device == InputEvent.DEVICE_ID_EMULATION or not active_touches.is_empty():
 			return
 
@@ -99,45 +174,50 @@ func _unhandled_input(event: InputEvent):
 					target_zoom = clampf(target_zoom + zoom_speed, min_zoom, max_zoom)
 		else:
 			if is_panning:
-				pan_camera(event.relative)
+				pan_pixels(event.relative)
 			elif is_orbiting:
-				orbit_camera(event.relative)
+				target_yaw -= event.relative.x * rotate_speed
+				target_pitch = clampf(target_pitch - event.relative.y * rotate_speed, min_pitch, max_pitch)
 
 	# --- TOUCH (PHONE) ---
 	elif event is InputEventScreenTouch:
 		if event.pressed and not event.canceled:
 			active_touches[event.index] = event.position
-			_pan_velocity = Vector3.ZERO
+			_fling_px = Vector2.ZERO
 			_last_drag_msec = Time.get_ticks_msec()
 		else:
 			active_touches.erase(event.index)
 			if active_touches.is_empty():
 				var idle_ms := Time.get_ticks_msec() - _last_drag_msec
-				if not pan_inertia or idle_ms > 80 or _pan_velocity.length() < min_fling_speed:
-					_pan_velocity = Vector3.ZERO
+				if not pan_inertia or idle_ms > 80 or _fling_px.length() < 300.0:
+					_fling_px = Vector2.ZERO
 		_reset_gesture_baseline()
 
 	elif event is InputEventScreenDrag:
+		# Only fingers that started on the map (not on UI buttons/sliders)
 		if not active_touches.has(event.index):
 			return
+		# Movement is measured from our own stored positions, not event.relative
+		var old_pos: Vector2 = active_touches[event.index]
+		var rel: Vector2 = event.position - old_pos
 		active_touches[event.index] = event.position
 
 		match active_touches.size():
 			1:
-				var move := pan_camera(event.relative)
+				pan_pixels(rel)
 				var now := Time.get_ticks_msec()
 				var dt := clampf((now - _last_drag_msec) / 1000.0, 0.008, 0.05)
-				_pan_velocity = _pan_velocity.lerp(move / dt, 0.5)
+				_fling_px = _fling_px.lerp(rel / dt, 0.4).limit_length(max_fling_px_per_sec)
 				_last_drag_msec = now
 			2:
-				_pan_velocity = Vector3.ZERO
+				_fling_px = Vector2.ZERO
 				_handle_two_finger_gesture()
 
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_APPLICATION_FOCUS_OUT or what == NOTIFICATION_WM_WINDOW_FOCUS_OUT:
 		active_touches.clear()
-		_pan_velocity = Vector3.ZERO
+		_fling_px = Vector2.ZERO
 		is_panning = false
 		is_orbiting = false
 		_reset_gesture_baseline()
@@ -165,15 +245,17 @@ func _handle_two_finger_gesture() -> void:
 	var a: Vector2 = pts[0]
 	var b: Vector2 = pts[1]
 	var dist := a.distance_to(b)
-	if dist < 1.0 or _prev_dist <= 0.0:
+	if dist < 20.0 or _prev_dist < 20.0:   # fingers touching: readings are garbage
+		_prev_dist = dist
 		return
 	var angle := (b - a).angle()
 	var mid := (a + b) * 0.5
 
-	# 1) PINCH ZOOM (smoothed toward target in _process)
-	target_zoom = clampf(target_zoom * (_prev_dist / dist), min_zoom, max_zoom)
+	# 1) PINCH ZOOM (per-event ratio clamped so a glitch can't launch the zoom)
+	var ratio := clampf(_prev_dist / dist, 0.8, 1.25)
+	target_zoom = clampf(target_zoom * ratio, min_zoom, max_zoom)
 
-	# 2) TWIST -> yaw. Angle is noisy when fingers are close, so fade it in with distance.
+	# 2) TWIST -> yaw
 	var d_angle := angle_difference(_prev_angle, angle)
 	var twist_weight := clampf(dist / 150.0, 0.0, 1.0)
 	if _twist_active:
@@ -186,7 +268,8 @@ func _handle_two_finger_gesture() -> void:
 	# 3) MIDPOINT VERTICAL DRAG -> pitch
 	var d_mid_y := mid.y - _prev_mid.y
 	if _tilt_active:
-		target_pitch = clampf(target_pitch - d_mid_y * tilt_speed, -80.0, -10.0)
+		var s := -1.0 if tilt_inverted else 1.0
+		target_pitch = clampf(target_pitch - d_mid_y * tilt_speed * s, min_pitch, max_pitch)
 	else:
 		_tilt_accum += d_mid_y
 		if absf(_tilt_accum) >= tilt_threshold_px:
@@ -198,78 +281,74 @@ func _handle_two_finger_gesture() -> void:
 
 
 # ---------------------------------------------------------------------------
-# CAMERA MOVEMENT
+# PAN
 # ---------------------------------------------------------------------------
+## World units covered by one screen pixel (horizontal) at the current zoom.
 func _units_per_pixel() -> float:
 	var vp := get_viewport().get_visible_rect().size
 	var px := vp.y if camera.keep_aspect == Camera3D.KEEP_HEIGHT else vp.x
 	return current_zoom / maxf(px, 1.0)
 
 
-func pan_camera(relative: Vector2) -> Vector3:
-	var right: Vector3 = camera.global_transform.basis.x
+func pan_pixels(rel: Vector2) -> void:
+	var right: Vector3 = global_transform.basis.x
 	right.y = 0.0
 	right = right.normalized()
-
-	var forward: Vector3 = -camera.global_transform.basis.z
+	var forward: Vector3 = -global_transform.basis.z
 	forward.y = 0.0
 	forward = forward.normalized()
 
+	# A tilted camera squashes ground distance vertically by sin(pitch); undo it
 	var tilt_comp := 1.0 / maxf(sin(deg_to_rad(-pitch)), 0.25)
 
-	var move: Vector3 = (-right * relative.x + forward * relative.y * tilt_comp) \
+	global_position += (-right * rel.x + forward * rel.y * tilt_comp) \
 			* _units_per_pixel() * pan_sensitivity
-	global_position += move
-	return move
+	_clamp_pivot()
 
 
-func orbit_camera(relative: Vector2):
-	target_yaw -= relative.x * rotate_speed
-	target_pitch = clampf(target_pitch - relative.y * rotate_speed, -80.0, -10.0)
-
-
-## Ground point currently at the CENTER of the screen (the natural pivot).
-func _focus_point() -> Variant:
-	var origin := camera.global_position
-	var dir := -camera.global_transform.basis.z
-	return Plane(Vector3.UP, focus_plane_y).intersects_ray(origin, dir)
-
-
-## Applies yaw/pitch, then slides the rig so the screen-center ground point
-## does not move. This is what makes rotation/tilt pivot around the screen
-## center instead of swinging the map away.
-func _apply_view() -> void:
-	var before: Variant = _focus_point()
-	rotation_degrees.y = yaw
-	camera.rotation_degrees = Vector3(pitch, 0.0, 0.0)
-	var after: Variant = _focus_point()
-	if before != null and after != null:
-		global_position += (before as Vector3) - (after as Vector3)
-
-
+# ---------------------------------------------------------------------------
+# FRAME UPDATE
+# ---------------------------------------------------------------------------
 func _process(delta: float):
-	# Smooth zoom (wheel + pinch)
+	# Smooth zoom
 	if not is_equal_approx(current_zoom, target_zoom):
-		var tz := 1.0 - exp(-zoom_smoothness * delta)
-		current_zoom = lerpf(current_zoom, target_zoom, tz)
+		current_zoom = lerpf(current_zoom, target_zoom, 1.0 - exp(-zoom_smoothness * delta))
 		if absf(current_zoom - target_zoom) < 0.005:
 			current_zoom = target_zoom
 		camera.size = current_zoom
 
-	# Smooth rotation / tilt (all orbit input goes through the targets)
+	# Smooth rotate / tilt
 	if not is_equal_approx(yaw, target_yaw) or not is_equal_approx(pitch, target_pitch):
-		var tr := 1.0 - exp(-rotate_smoothness * delta)
-		yaw = lerpf(yaw, target_yaw, tr)
-		pitch = lerpf(pitch, target_pitch, tr)
+		var t := 1.0 - exp(-rotate_smoothness * delta)
+		yaw = lerpf(yaw, target_yaw, t)
+		pitch = lerpf(pitch, target_pitch, t)
 		if absf(yaw - target_yaw) < 0.01:
 			yaw = target_yaw
 		if absf(pitch - target_pitch) < 0.01:
 			pitch = target_pitch
 		_apply_view()
 
-	# Fling / inertia after finger release
-	if _pan_velocity != Vector3.ZERO and active_touches.is_empty():
-		global_position += _pan_velocity * delta
-		_pan_velocity *= exp(-inertia_damping * delta)
-		if _pan_velocity.length() < 0.2:
-			_pan_velocity = Vector3.ZERO
+	# Optional fling
+	if _fling_px != Vector2.ZERO and active_touches.is_empty():
+		pan_pixels(_fling_px * delta)
+		_fling_px *= exp(-inertia_damping * delta)
+		if _fling_px.length() < 20.0:
+			_fling_px = Vector2.ZERO
+
+	if _dbg:
+		_dbg.text = "CamRig %s\ntouches %d | zoom %.1f\nyaw %.0f pitch %.0f | dist %.0f\npivot %.0f, %.0f | bounds %s | px=%.3fu" % [
+			VERSION, active_touches.size(), current_zoom, yaw, pitch, _dist,
+			global_position.x, global_position.z, str(has_bounds), _units_per_pixel()]
+
+
+func _make_debug_overlay() -> void:
+	var layer := CanvasLayer.new()
+	layer.layer = 100
+	_dbg = Label.new()
+	_dbg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_dbg.add_theme_font_size_override("font_size", 14)
+	_dbg.add_theme_color_override("font_outline_color", Color.BLACK)
+	_dbg.add_theme_constant_override("outline_size", 4)
+	layer.add_child(_dbg)
+	add_child(layer)
+	_dbg.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT, Control.PRESET_MODE_MINSIZE, 10)
