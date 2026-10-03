@@ -5,10 +5,10 @@ extends Node3D
 ## The camera is placed by this script at a fixed distance behind the pivot.
 ## => rotate / tilt always spin around the screen centre, pan moves the pivot.
 ##
-## TOUCH: 1 finger = pan | pinch = zoom | twist = rotate | 2-finger up/down = tilt
+## TOUCH: 1 finger = pan (+fling) | pinch = zoom | twist or 2-finger sideways = rotate | 2-finger up/down = tilt
 ## MOUSE: left drag = pan | right/middle drag = orbit | wheel = zoom
 
-const VERSION := "v4"
+const VERSION := "v5"
 
 @export_group("Zoom")
 @export var min_zoom: float = 10.0
@@ -17,22 +17,24 @@ const VERSION := "v4"
 @export var zoom_smoothness: float = 14.0
 
 @export_group("Pan")
-@export var pan_sensitivity: float = 1.0      # 1.0 = map sticks to the finger
-@export var pan_inertia: bool = false         # Fling after release (off by default)
-@export var inertia_damping: float = 5.0
-@export var max_fling_px_per_sec: float = 1500.0
+@export var pan_sensitivity: float = 1.25     # 1.0 = map sticks to the finger
+@export var pan_inertia: bool = true          # Fling after release
+@export var inertia_damping: float = 3.5     # Lower = glides further
+@export var max_fling_px_per_sec: float = 2500.0
 
 @export_group("Orbit")
 @export var rotate_speed: float = 0.07        # Mouse orbit (deg/px)
-@export var rotate_smoothness: float = 14.0
-@export var min_pitch: float = -80.0
-@export var max_pitch: float = -15.0
+@export var rotate_smoothness: float = 18.0
+@export var min_pitch: float = -90.0     # -90 = straight top-down
+@export var max_pitch: float = -10.0     # closer to 0 = nearer the horizon
 
 @export_group("Touch Two-Finger")
-@export var twist_gain: float = 1.0           # -1 inverts twist direction
-@export var twist_threshold_deg: float = 6.0
-@export var tilt_speed: float = 0.25          # deg per px
-@export var tilt_threshold_px: float = 12.0
+@export var twist_gain: float = 2.0           # Negative inverts twist direction
+@export var twist_threshold_deg: float = 3.0
+@export var tilt_speed: float = 0.4           # deg per px
+@export var tilt_threshold_px: float = 8.0
+@export var drag_rotate_speed: float = 0.3    # Two fingers sideways = rotate (deg/px). Negative inverts.
+@export var drag_rotate_threshold_px: float = 10.0
 @export var tilt_inverted: bool = false
 
 @export_group("Scene Setup")
@@ -74,6 +76,8 @@ var _twist_accum: float = 0.0
 var _twist_active: bool = false
 var _tilt_accum: float = 0.0
 var _tilt_active: bool = false
+var _drag_rot_accum: float = 0.0
+var _drag_rot_active: bool = false
 
 # Fling state (screen pixels per second)
 var _fling_px: Vector2 = Vector2.ZERO
@@ -231,6 +235,8 @@ func _reset_gesture_baseline() -> void:
 	_tilt_accum = 0.0
 	_twist_active = false
 	_tilt_active = false
+	_drag_rot_accum = 0.0
+	_drag_rot_active = false
 	if active_touches.size() == 2:
 		var pts: Array = active_touches.values()
 		_prev_dist = pts[0].distance_to(pts[1])
@@ -257,7 +263,7 @@ func _handle_two_finger_gesture() -> void:
 
 	# 2) TWIST -> yaw
 	var d_angle := angle_difference(_prev_angle, angle)
-	var twist_weight := clampf(dist / 150.0, 0.0, 1.0)
+	var twist_weight := clampf(dist / 100.0, 0.0, 1.0)
 	if _twist_active:
 		target_yaw += rad_to_deg(d_angle) * twist_gain * twist_weight
 	else:
@@ -274,6 +280,15 @@ func _handle_two_finger_gesture() -> void:
 		_tilt_accum += d_mid_y
 		if absf(_tilt_accum) >= tilt_threshold_px:
 			_tilt_active = true
+
+	# 4) MIDPOINT SIDEWAYS DRAG -> yaw (easier than twisting your wrist)
+	var d_mid_x := mid.x - _prev_mid.x
+	if _drag_rot_active:
+		target_yaw -= d_mid_x * drag_rotate_speed
+	else:
+		_drag_rot_accum += d_mid_x
+		if absf(_drag_rot_accum) >= drag_rotate_threshold_px:
+			_drag_rot_active = true
 
 	_prev_dist = dist
 	_prev_angle = angle
