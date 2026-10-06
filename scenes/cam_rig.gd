@@ -47,7 +47,7 @@ const VERSION := "v5"
 @export var bounds_margin: float = 10.0
 
 @export_group("Debug")
-@export var debug_overlay: bool = true        # Small text at bottom-left. Turn off when done.
+@export var debug_overlay: bool = false       # Small text at bottom-left. Turn off when done.
 
 @onready var camera: Camera3D = $Camera3D
 
