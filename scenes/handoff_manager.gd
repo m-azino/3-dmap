@@ -7,6 +7,9 @@ extends Node
 
 # --- CONFIGURE YOUR DEPLOYED WEB APP URL HERE ---
 const WEB_APP_BASE_URL = "https://campusnav3d.netlify.app"
+const CLOSE_BTN_SIZE := 34.0
+var _qr_close_btn: Button
+
 const FIREBASE_URL = "https://campasnav-default-rtdb.asia-southeast1.firebasedatabase.app/sessions.json"
 
 func _ready():
@@ -15,8 +18,42 @@ func _ready():
 	
 	if qr_display != null:
 		qr_display.visible = false
+		_create_close_button()
 		
 	check_for_mobile_session()
+
+# --- QR CLOSE BUTTON ---
+func _create_close_button() -> void:
+	_qr_close_btn = Button.new()
+	_qr_close_btn.text = "X"
+	_qr_close_btn.tooltip_text = "Close"
+	_qr_close_btn.focus_mode = Control.FOCUS_NONE
+	_qr_close_btn.custom_minimum_size = Vector2(CLOSE_BTN_SIZE, CLOSE_BTN_SIZE)
+	_qr_close_btn.size = Vector2(CLOSE_BTN_SIZE, CLOSE_BTN_SIZE)
+	_qr_close_btn.add_theme_font_size_override("font_size", 16)
+	_qr_close_btn.pressed.connect(close_qr)
+	# Child of the QR frame, so it shows/hides together with the QR code
+	qr_display.add_child(_qr_close_btn)
+
+func close_qr() -> void:
+	if qr_display != null:
+		qr_display.visible = false
+
+# Sits just OUTSIDE the QR image (so it never covers part of the code).
+# Prefers above the QR, then below, then to its left, whichever fits on screen.
+func _place_close_button() -> void:
+	if _qr_close_btn == null or qr_display == null:
+		return
+	var rect := qr_display.get_global_rect()
+	var view := qr_display.get_viewport_rect().size
+	var s := CLOSE_BTN_SIZE
+	var gap := 4.0
+	if rect.position.y >= s + gap:
+		_qr_close_btn.position = Vector2(rect.size.x - s, -s - gap)
+	elif rect.end.y + s + gap <= view.y:
+		_qr_close_btn.position = Vector2(rect.size.x - s, rect.size.y + gap)
+	else:
+		_qr_close_btn.position = Vector2(-s - gap, 0.0)
 
 # --- SENDER LOGIC (KIOSK / DESKTOP) ---
 func send_room_to_firebase(room_name: String):
@@ -63,6 +100,7 @@ func _on_qr_image_downloaded(result, response_code, headers, body):
 			
 			qr_display.texture = ImageTexture.create_from_image(image)
 			qr_display.visible = true
+			get_tree().process_frame.connect(_place_close_button, CONNECT_ONE_SHOT)
 		else:
 			print("Failed to render QR Image buffer into texture. Code: ", error)
 	else:
