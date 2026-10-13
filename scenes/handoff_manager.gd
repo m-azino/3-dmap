@@ -7,6 +7,10 @@ extends Node
 
 # --- CONFIGURE YOUR DEPLOYED WEB APP URL HERE ---
 const WEB_APP_BASE_URL = "https://campusnav3d.netlify.app"
+# QR frame size and its gap from the screen edges (in UI pixels)
+@export var qr_size: float = 140.0
+@export var qr_margin: float = 16.0
+
 const CLOSE_BTN_SIZE := 34.0
 var _qr_close_btn: Button
 
@@ -21,6 +25,15 @@ func _ready():
 		_create_close_button()
 		
 	check_for_mobile_session()
+
+# Pins the QR frame to the bottom-right corner of the screen. The anchors are
+# set to the corner itself, so it stays there for any resolution, window size,
+# phone rotation or browser resize.
+func _anchor_qr_bottom_right() -> void:
+	qr_display.set_anchors_and_offsets_preset(
+		Control.PRESET_BOTTOM_RIGHT, Control.PRESET_MODE_KEEP_SIZE, int(qr_margin))
+	qr_display.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	qr_display.grow_vertical = Control.GROW_DIRECTION_BEGIN
 
 # --- QR CLOSE BUTTON ---
 func _create_close_button() -> void:
@@ -95,10 +108,11 @@ func _on_qr_image_downloaded(result, response_code, headers, body):
 			qr_display.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 			qr_display.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 			
-			# Set the exact maximum size you want for the QR frame (e.g., 140x140)
-			qr_display.custom_minimum_size = Vector2(140, 140)
+			qr_display.custom_minimum_size = Vector2(qr_size, qr_size)
+			qr_display.size = Vector2(qr_size, qr_size)
 			
 			qr_display.texture = ImageTexture.create_from_image(image)
+			_anchor_qr_bottom_right()
 			qr_display.visible = true
 			get_tree().process_frame.connect(_place_close_button, CONNECT_ONE_SHOT)
 		else:
