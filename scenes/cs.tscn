@@ -132,3 +132,5 @@ qr_display = NodePath("../UI/TextureRect")
 [node name="FirebaseRequest" type="HTTPRequest" parent="HandoffManager" unique_id=1699828129]
 
 [node name="QRRequest" type="HTTPRequest" parent="HandoffManager" unique_id=1419356023]
+
+[editable path="cseblock"]

@@ -2,23 +2,18 @@ extends CanvasLayer
 
 signal room_opacity_changed(value: float)
 signal room_selected(room_node_name: String)
+signal dither_holes_toggled(enabled: bool)
+signal block_selected(block_name: String)
 
 @onready var btn_back: Button = $MenuContainer/VBox/Header/BtnBack
 @onready var lbl_title: Label = $MenuContainer/VBox/Header/LblTitle
 @onready var content_grid: GridContainer = $MenuContainer/VBox/ContentGrid
 
-const ICON_PATH := "res://icons/"
-
-const ICON_OVERRIDES := {
-	"CS3room": "CS2room4",
-	"CS2room5": "CS2room2",
-	"CS1room1": "CS2room1",
-	"CS1room2": "CS2room2",
-	"CS1room3": "CS2room2",
-	"CS1room6": "CS1room5",
-	"CS2staff1": "CS3staff1",
-	"CS1staff1": "CS3staff1",
-	"CS1gwash": "CS3gwash"
+# Floors, derived from the room id (same naming cs.gd uses for floor slicing)
+const FLOOR_NAMES := {
+	1: "Ground Floor",
+	2: "First Floor",
+	3: "Second Floor"
 }
 
 const MENU_DATA := {
@@ -60,6 +55,53 @@ const MENU_DATA := {
 			{"id": "CS3gwash", "label": "Girls Washroom (Second Floor)"}
 		]
 	}
+}
+
+const ADMIN_MENU_DATA := {
+	"Administration": [
+		{"id": "AD1prin",   "label": "Principal's Office"},
+		{"id": "AD1dean",   "label": "Dean's Office"},
+		{"id": "AD1bursar", "label": "Bursar's Room"},
+		{"id": "AD1office", "label": "Office"},
+		{"id": "AD1conf",   "label": "Conference Hall"}
+	],
+	"Classrooms": [
+		{"id": "AD2class1", "label": "Class 2-1"},
+		{"id": "AD2class2", "label": "Class 2-2"},
+		{"id": "AD2class3", "label": "Class 2-3"},
+		{"id": "AD2class4", "label": "Class 2-4"},
+		{"id": "AD2class5", "label": "Class 2-5"},
+		{"id": "AD3class1", "label": "Class 3-1"},
+		{"id": "AD3class2", "label": "Class 3-2"},
+		{"id": "AD3class3", "label": "Class 3-3"},
+		{"id": "AD3class4", "label": "Class 3-4"},
+		{"id": "AD3class5", "label": "Class 3-5"}
+	],
+	"Faculty Rooms": [
+		{"id": "AD2hod",    "label": "HOD Room"},
+		{"id": "AD2staff1", "label": "Staff Room 1"},
+		{"id": "AD2staff2", "label": "Staff Room 2"},
+		{"id": "AD3hod",    "label": "HOD Room"},
+		{"id": "AD3staff1", "label": "Staff Room 1"},
+		{"id": "AD3staff2", "label": "Staff Room 2"}
+	],
+	"Labs": [
+		{"id": "AD2lab", "label": "Computer Room"},
+		{"id": "AD3lab", "label": "Lab Room"}
+	],
+	"Halls": [
+		{"id": "AD1hall",     "label": "Gallery Hall"},
+		{"id": "AD2seminar",  "label": "Seminar Hall"},
+		{"id": "AD3drawing1", "label": "Drawing Hall 1"},
+		{"id": "AD3drawing2", "label": "Drawing Hall 2"}
+	],
+	"Washrooms": [
+		{"id": "AD1bwash", "label": "Boys Washroom"},
+		{"id": "AD1gwash", "label": "Girls Washroom"},
+		{"id": "AD2bwash", "label": "Boys Washroom"},
+		{"id": "AD2gwash", "label": "Girls Washroom"},
+		{"id": "AD3bwash", "label": "Boys Washroom"}
+	]
 }
 
 var current_view := "blocks"
@@ -168,6 +210,15 @@ func create_settings_ui():
 	chk_trees.text = "Show Trees & Palms"
 	chk_trees.button_pressed = true
 	vbox.add_child(chk_trees)
+
+	# See-through dither holes where buildings/trees block the path
+	var chk_holes := CheckBox.new()
+	chk_holes.text = "See-through Holes (Dither)"
+	chk_holes.button_pressed = true
+	chk_holes.toggled.connect(func(toggled: bool):
+		dither_holes_toggled.emit(toggled)
+	)
+	vbox.add_child(chk_holes)
 
 	var sep1 := HSeparator.new()
 	vbox.add_child(sep1)
@@ -319,6 +370,17 @@ func create_opacity_slider_ui():
 	add_child(margin)
 
 # --- LEVEL 1: MAIN BLOCKS ---
+# All blocks shown on the first screen (CSE from MENU_DATA, Admin from ADMIN_MENU_DATA)
+func get_block_names() -> Array:
+	var names: Array = MENU_DATA.keys()
+	names.append("Admin Block")
+	return names
+
+func get_block_data(block_name: String) -> Dictionary:
+	if block_name == "Admin Block":
+		return ADMIN_MENU_DATA
+	return MENU_DATA[block_name]
+
 func show_block_menu():
 	current_view = "blocks"
 	btn_back.visible = false
@@ -326,44 +388,17 @@ func show_block_menu():
 	content_grid.columns = 1
 	clear_grid()
 	
-	for block_name in MENU_DATA.keys():
-		var icon_name := "CSEblock"
-		create_block_card(block_name, icon_name, func():
+	for block_name in get_block_names():
+		create_block_card(block_name, func():
 			selected_block = block_name
+			block_selected.emit(block_name)
 			show_category_menu()
 		)
 
-func create_block_card(display_text: String, icon_name: String, callback: Callable):
+func create_block_card(display_text: String, callback: Callable):
 	var btn := Button.new()
-	btn.custom_minimum_size = Vector2(200, 110)
-	
-	var hbox := HBoxContainer.new()
-	hbox.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	hbox.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	btn.add_child(hbox)
-	
-	var texture_path := ICON_PATH + icon_name + ".png"
-	var tex_rect := TextureRect.new()
-	tex_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	tex_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	tex_rect.custom_minimum_size = Vector2(130, 90)
-	tex_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	
-	if ResourceLoader.exists(texture_path):
-		tex_rect.texture = load(texture_path)
-	else:
-		print("WARNING: Missing block icon -> ", texture_path)
-		
-	hbox.add_child(tex_rect)
-	
-	var lbl := Label.new()
-	lbl.text = display_text
-	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-	lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	hbox.add_child(lbl)
-	
+	btn.text = display_text
+	btn.custom_minimum_size = Vector2(200, 80)
 	btn.pressed.connect(callback)
 	content_grid.add_child(btn)
 
@@ -375,24 +410,75 @@ func show_category_menu():
 	content_grid.columns = 1
 	clear_grid()
 	
-	var categories: Dictionary = MENU_DATA[selected_block]
+	var categories: Dictionary = get_block_data(selected_block)
 	for cat_name in categories.keys():
 		create_list_button(cat_name, func():
 			selected_category = cat_name
 			show_room_grid()
 		)
 
-# --- LEVEL 3: ROOM CARDS ---
+# --- LEVEL 3: ROOMS, GROUPED BY FLOOR ---
 func show_room_grid():
 	current_view = "rooms"
 	btn_back.visible = true
 	lbl_title.text = selected_category
-	content_grid.columns = 2
+	content_grid.columns = 1 # Each floor = a heading + its own 2-column grid
 	clear_grid()
 	
-	var rooms: Array = MENU_DATA[selected_block][selected_category]
+	var rooms: Array = get_block_data(selected_block)[selected_category]
+	
+	# Group rooms by floor, keeping the MENU_DATA order inside each floor
+	var by_floor := {}
 	for room_data in rooms:
-		create_room_card(room_data["id"], room_data["label"])
+		var floor_num := get_room_floor(room_data["id"])
+		if not by_floor.has(floor_num):
+			by_floor[floor_num] = []
+		by_floor[floor_num].append(room_data)
+	
+	var floor_nums: Array = by_floor.keys()
+	floor_nums.sort() # Ground -> First -> Second
+	
+	var is_first := true
+	for floor_num in floor_nums:
+		add_floor_section(floor_num, by_floor[floor_num], is_first)
+		is_first = false
+
+# CS1* = ground, CS2* = first, CS3* = second. Anything else goes last as "Other".
+func get_room_floor(room_id: String) -> int:
+	if room_id.begins_with("CS1") or room_id.begins_with("AD1"):
+		return 1
+	elif room_id.begins_with("CS2") or room_id.begins_with("AD2"):
+		return 2
+	elif room_id.begins_with("CS3") or room_id.begins_with("AD3"):
+		return 3
+	return 99
+
+func add_floor_section(floor_num: int, rooms: Array, is_first: bool):
+	if not is_first:
+		var spacer := Control.new()
+		spacer.custom_minimum_size = Vector2(0, 10)
+		content_grid.add_child(spacer)
+	
+	var heading := Label.new()
+	heading.text = FLOOR_NAMES.get(floor_num, "Other")
+	heading.add_theme_font_size_override("font_size", 18)
+	content_grid.add_child(heading)
+	content_grid.add_child(HSeparator.new())
+	
+	var grid := GridContainer.new()
+	grid.columns = 2
+	grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	content_grid.add_child(grid)
+	
+	for room_data in rooms:
+		create_room_card(room_data["id"], strip_floor_suffix(room_data["label"]), grid)
+
+# "Girls Washroom (Ground Floor)" -> "Girls Washroom" (the heading already says the floor)
+func strip_floor_suffix(text: String) -> String:
+	var idx := text.find(" (")
+	if idx != -1 and text.ends_with("Floor)"):
+		return text.substr(0, idx)
+	return text
 
 func create_list_button(text: String, callback: Callable):
 	var btn := Button.new()
@@ -401,37 +487,19 @@ func create_list_button(text: String, callback: Callable):
 	btn.pressed.connect(callback)
 	content_grid.add_child(btn)
 
-func create_room_card(room_id: String, display_text: String):
+func create_room_card(room_id: String, display_text: String, parent: Control = null):
 	var btn := Button.new()
-	btn.custom_minimum_size = Vector2(140, 140)
-	
-	var vbox := VBoxContainer.new()
-	vbox.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	vbox.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	btn.add_child(vbox)
-	
-	var icon_name: String = ICON_OVERRIDES.get(room_id, room_id)
-	var texture_path := ICON_PATH + icon_name + ".png"
-	
-	var tex_rect := TextureRect.new()
-	tex_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	tex_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	tex_rect.custom_minimum_size = Vector2(120, 85)
-	tex_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	
-	if ResourceLoader.exists(texture_path):
-		tex_rect.texture = load(texture_path)
-	else:
-		print("WARNING: Missing icon -> ", texture_path)
-		
-	vbox.add_child(tex_rect)
+	btn.custom_minimum_size = Vector2(140, 64)
+	btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	
 	var lbl := Label.new()
 	lbl.text = display_text
+	lbl.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT, Control.PRESET_MODE_MINSIZE, 6)
 	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	vbox.add_child(lbl)
+	lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	btn.add_child(lbl)
 	
 	btn.pressed.connect(func():
 		room_selected.emit(room_id)
@@ -441,7 +509,7 @@ func create_room_card(room_id: String, display_text: String):
 			handoff.send_room_to_firebase(room_id)
 	)
 	
-	content_grid.add_child(btn)
+	(parent if parent != null else content_grid).add_child(btn)
 
 func on_back_pressed():
 	if current_view == "rooms":
